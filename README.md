@@ -51,6 +51,8 @@ Here, the environment configuration is completed！
 
 ## Tutorials
 
+[How to use SAGE](https://github.com/yihe-csu/SAGE/wiki/How-to-use-SAGE): Before using SAGE, activate the `SAGE_ENV` environment and set required environment variables.
+
 [Tutorial 1](https://github.com/yihe-csu/SAGE/wiki/Tutorial-1:-Application-on-10x-Visium-human-dorsolateral-prefrontal-cortex-(DLPFC)-dataset): Application-on-10x-Visium-human-dorsolateral-prefrontal-cortex-(DLPFC)-dataset.
 
 
