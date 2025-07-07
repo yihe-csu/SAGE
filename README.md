@@ -55,6 +55,8 @@ Here, the environment configuration is completed！
 
 [Tutorial 1](https://github.com/yihe-csu/SAGE/wiki/Tutorial-1:-Application-on-10x-Visium-human-dorsolateral-prefrontal-cortex-(DLPFC)-dataset): Application-on-10x-Visium-human-dorsolateral-prefrontal-cortex-(DLPFC)-dataset.
 
+[Tutorial 2](https://github.com/yihe-csu/SAGE/wiki/Tutorial-2:-Application-on-Human-Breast-Cancer-(HBC)-dataset.): Application-on-Human-Breast-Cancer-(HBC)-dataset.
+
 
 ## Reference and Citation
 He, Y., Wang, S., Xu, Y., Wang, J. et al. SAGE: Spatially Aware Genes Selection and Multi-view Embedding Fusion for Domain Identification in Spatial Transcriptomics.
