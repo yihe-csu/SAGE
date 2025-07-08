@@ -57,6 +57,8 @@ Here, the environment configuration is completed！
 
 [Tutorial 2](https://github.com/yihe-csu/SAGE/wiki/Tutorial-2:-Application-on-Human-Breast-Cancer-(HBC)-dataset.): Application-on-Human-Breast-Cancer-(HBC)-dataset.
 
+[Tutorial 3](https://github.com/yihe-csu/SAGE/wiki/Tutorial-3:-Application-on-Mouse-Brain-Dataset): Application-on-Mouse-Brain-dataset
+
 
 ## Reference and Citation
 He, Y., Wang, S., Xu, Y., Wang, J. et al. SAGE: Spatially Aware Genes Selection and Multi-view Embedding Fusion for Domain Identification in Spatial Transcriptomics.
