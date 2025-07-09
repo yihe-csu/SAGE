@@ -53,11 +53,13 @@ Here, the environment configuration is completed！
 
 [How to use SAGE](https://github.com/yihe-csu/SAGE/wiki/How-to-use-SAGE): Before using SAGE, activate the `SAGE_ENV` environment and set required environment variables.
 
-[Tutorial 1](https://github.com/yihe-csu/SAGE/wiki/Tutorial-1:-Application-on-10x-Visium-human-dorsolateral-prefrontal-cortex-(DLPFC)-dataset): Application-on-10x-Visium-human-dorsolateral-prefrontal-cortex-(DLPFC)-dataset.
+[Tutorial 1](https://github.com/yihe-csu/SAGE/wiki/Tutorial-1:-Application-on-10x-Visium-human-dorsolateral-prefrontal-cortex-(DLPFC)-dataset): Application on 10x Visium human dorsolateral prefrontal cortex (DLPFC) dataset.
 
-[Tutorial 2](https://github.com/yihe-csu/SAGE/wiki/Tutorial-2:-Application-on-Human-Breast-Cancer-(HBC)-dataset.): Application-on-Human-Breast-Cancer-(HBC)-dataset.
+[Tutorial 2](https://github.com/yihe-csu/SAGE/wiki/Tutorial-2:-Application-on-Human-Breast-Cancer-(HBC)-dataset.): Application on Human Breast Cancer (HBC) dataset.
 
-[Tutorial 3](https://github.com/yihe-csu/SAGE/wiki/Tutorial-3:-Application-on-Mouse-Brain-Dataset): Application-on-Mouse-Brain-dataset
+[Tutorial 3](https://github.com/yihe-csu/SAGE/wiki/Tutorial-3:-Application-on-Mouse-Brain-Dataset): Application on Mouse Brain dataset
+
+[Tutorial 4](https://github.com/yihe-csu/SAGE/wiki/Tutorial-4:-Application-on-Zebrafish-Melanoma-Dataset): Application on Zebrafish Melanoma Dataset
 
 
 ## Reference and Citation
