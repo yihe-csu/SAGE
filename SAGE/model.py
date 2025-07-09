@@ -42,7 +42,7 @@ class InnerProductDecoder(nn.Module):
         super(InnerProductDecoder, self).__init__()
 
     def forward(self, z):
-        adj_reconstructed = torch.sigmoid(torch.matmul(z, z.t()))  # Decode edges via inner product
+        adj_reconstructed = torch.sigmoid(torch.matmul(z, z.t()))  # Decode edges by inner product
         return adj_reconstructed
 
 
@@ -123,26 +123,26 @@ class SAGE_model(nn.Module):
         return results
     
     def bce_loss(self, adj_reconstructed, adj_original):
-
-        # Convert to float32
+  
+        # Convert to float type
         adj_original = adj_original.to(torch.float32)
         adj_reconstructed = adj_reconstructed.to(torch.float32)
 
-        # BCE loss, calculate the difference between the reconstruction probability and the original adjacency matrix for each pair of nodes
+        # BCE loss, calculate the difference between the reconstructed probability of each node pair and the original adjacency matrix
         loss = F.binary_cross_entropy(adj_reconstructed, adj_original)
 
         return loss
 
     def calc_graph_loss(self, results, adj_coord, adj_feat):
-        """Graph structure consistency loss"""
+
         z = results['emb_latent_att']
         sim_matrix = torch.sigmoid(torch.mm(z, z.T))
-
+        
         # Coordinate graph structure preservation
         loss_coord = F.binary_cross_entropy(
             sim_matrix[adj_coord > 0], 
             torch.ones_like(sim_matrix[adj_coord > 0]))
-
+        
         # Feature graph false edge penalty
         loss_feat = F.binary_cross_entropy(
             sim_matrix[adj_feat > 0], 
@@ -152,34 +152,30 @@ class SAGE_model(nn.Module):
         
     
     def calc_attn_reg(self, results):
-        """Attention mechanism regularization"""
+
         alpha = results['alpha']
-        return torch.mean((alpha - 0.5)**2)  # Force balance between the two views
+        return torch.mean((alpha - 0.5)**2)  # Force balance between two views
 
 def sinkhorn_knopp(
     Q,                  # Input matrix [n, m]
-    n_iters=10,         # Maximum iterations
+    n_iters=10,         # Maximum number of iterations
     epsilon=1e-3,       # Convergence threshold
 ):
-    """
-    Correct implementation of Sinkhorn-Knopp:
-    1. Alternating row and column normalization until convergence
-    2. Supports error monitoring and early stopping
-    """
+
     assert Q.min() >= 0, "Input matrix must be non-negative"
-
+    
     for _ in range(n_iters):
-        # Row normalization (ensure row sums to 1)
+        # Row normalization (ensure row sum is 1)
         Q_row = Q / (Q.sum(dim=1, keepdim=True) + 1e-8)
-
-        # Column normalization (ensure column sums to 1)
+        
+        # Column normalization (ensure column sum is 1)
         Q = Q_row / (Q_row.sum(dim=0, keepdim=True) + 1e-8)
-
-        # Calculate errors
+        
+        # Calculate error
         row_error = torch.abs(Q.sum(dim=1) - 1).mean()
         col_error = torch.abs(Q.sum(dim=0) - 1).mean()
         error = (row_error + col_error).item()
-
+            
         # Check convergence
         if error < epsilon:
             break
@@ -192,40 +188,31 @@ class SwAVLoss(torch.nn.Module):
         self.n_clusters = n_clusters
         self.epsilon = epsilon
         self.n_iters = n_iters
-        self.update_interval = update_interval  # How often to update cluster centers
+        self.update_interval = update_interval  # Update cluster centers every n epochs
         self.kmeans = None  # Clustering model
         self.current_epoch = 0  # Current training epoch
 
     def fit_kmeans(self, z):
-        """
-        Use K-means clustering to train cluster centers
-        - z: Input features (batch_size, dim_hid)
-        """
+
         # Convert input tensor z to numpy array for K-means
         z_np = z.detach().cpu().numpy()
 
-        # Perform K-means clustering to obtain cluster centers
+        # Perform K-means clustering to get cluster centers
         self.kmeans = KMeans(n_clusters=self.n_clusters, init='k-means++', n_init=50, random_state=42)
         self.kmeans.fit(z_np)  # Train K-means clustering
         # print(f"Cluster centers: {self.kmeans.cluster_centers_}")
     
     def _should_update_clusters(self, epoch):
-        """
-        Check if cluster centers need to be updated
-        - epoch: Current training epoch
-        """
-        # If the epoch satisfies the update interval, or if the clustering centers have not been trained yet, update is needed
+ 
+        # Update if epoch meets interval or if cluster centers have not been trained
         return (epoch % self.update_interval == 0) or (self.kmeans is None)
     
 
     def forward(self, z1, z2, z3, epoch=None):
-        """
-        Compute SwAV contrastive loss
-        - z1, z2: Features from different augmented views
-        """
+  
         if self.kmeans is None:
-            # If K-means clustering has not been trained yet, train it once
-            self.fit_kmeans(z3)
+            # If K-means clustering has not been trained, train once
+            self.fit_kmeans(z3)  
 
         # Use trained cluster centers to generate cluster assignments
         Q1 = self._get_cluster_assignments(z1)
@@ -238,29 +225,21 @@ class SwAVLoss(torch.nn.Module):
         # Swap assignments and compute KL divergence
         loss = F.kl_div(Q1.log(), Q2, reduction='batchmean') + \
                F.kl_div(Q2.log(), Q1, reduction='batchmean')
-
+        
         # Update current epoch
         if epoch is not None:
             self.current_epoch = epoch
         return loss
 
     def _get_cluster_assignments(self, z):
-        """
-        Map each sample to cluster assignments using the trained K-means cluster centers
-        - z: Input features (batch_size, dim_hid)
-        """
-        batch_size, dim_hid = z.shape
 
-        # Convert input tensor z to numpy array for distance computation
+        # Convert input tensor z to numpy array for distance calculation
         z_np = z.detach().cpu().numpy()
 
-        # Compute distances from each sample to cluster centers
+        # Compute distance from each sample to cluster centers
         distances = self.kmeans.transform(z_np)  # (batch_size, n_clusters)
 
         # Convert distances to probability distribution (softmax)
         Q = torch.tensor(distances, dtype=torch.float32, device=z.device)
-        Q = F.softmax(-Q / self.epsilon, dim=-1)  # Compute softmax probabilities of negative distances
+        Q = F.softmax(-Q / self.epsilon, dim=-1)  # Softmax probability of negative distance
         return Q
-
-
-
