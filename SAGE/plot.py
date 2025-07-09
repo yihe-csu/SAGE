@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import os
 import numpy as np
 import re
+import seaborn as sns
 
 def visualize_topics(adata, 
                      n_top_topics=None,
@@ -15,15 +16,6 @@ def visualize_topics(adata,
                      colorbar_loc="right",
                      show_title=True
                      ):
-    """
-    Visualize the top topics based on Moran's I values.
-
-    Parameters:
-    adata : AnnData
-        The AnnData object containing Moran's I values in `adata.uns["topic_mri_list"]`.
-    n_top_topics : int, optional
-        The number of top topics to visualize. If None, visualize all topics.
-    """
 
     plt.rcParams["figure.figsize"] = figsize  # Set global figure size
     plt.rcParams["font.size"] = fontsize      # Set global font size
@@ -33,14 +25,14 @@ def visualize_topics(adata,
 
     W = adata_plot.obsm["W_nmf"] 
 
-    for i in range(W.shape[1]):  # Iterate over all topics
+    for i in range(W.shape[1]):  # Iterate all topics
         adata_plot.obs[f"Topic_{i}"] = W[:, i]
 
     if "topic_mri_list" not in adata_plot.uns:
         raise ValueError("topic_mri_list not found in adata.uns. Please run `calculate_MRI_for_topics` first.")
 
     topic_mri_list = adata_plot.uns["topic_mri_list"]
-    # Select the top n_top_topics topics
+    # Select top n_top_topics topics
     if n_top_topics is not None:
         topic_mri_list = topic_mri_list[:n_top_topics]
 
@@ -50,49 +42,45 @@ def visualize_topics(adata,
         topic_title = [f"Topic {int(topic[0])}, MRI: {topic[1]:.2f}"] if show_title else ""
 
         if 'spatial' in adata.uns:
-            sc.pl.spatial(adata, 
-                        color=[f"Topic_{int(topic[0])}"], 
-                        img_key= None,
-                        spot_size=spot_size, 
-                        title=topic_title, 
-                        cmap="inferno",
-                        frameon=frameon, 
-                        legend_loc=legend_loc, 
-                        colorbar_loc=colorbar_loc,
-                        show=False)
+            sc.pl.spatial(
+                adata, 
+                color=[f"Topic_{int(topic[0])}"], 
+                img_key=None,
+                spot_size=spot_size, 
+                title=topic_title, 
+                cmap="inferno",
+                frameon=frameon, 
+                legend_loc=legend_loc, 
+                colorbar_loc=colorbar_loc,
+                show=False
+            )
         else:
-            sc.pl.spatial(adata, 
-                        color=[f"Topic_{int(topic[0])}"], 
-                        title=topic_title, 
-                        cmap="inferno", 
-                        spot_size=spot_size,
-                        frameon=frameon, 
-                        legend_loc=legend_loc, 
-                        colorbar_loc=colorbar_loc, 
-                        show=False)
+            sc.pl.spatial(
+                adata, 
+                color=[f"Topic_{int(topic[0])}"], 
+                title=topic_title, 
+                cmap="inferno", 
+                spot_size=spot_size,
+                frameon=frameon, 
+                legend_loc=legend_loc, 
+                colorbar_loc=colorbar_loc, 
+                show=False
+            )
 
         if out_dir:
             output_result_dir = os.path.join(out_dir, "select_topics")
             os.makedirs(output_result_dir, exist_ok=True)
-            plt.savefig(os.path.join(output_result_dir, f"Topic_{int(topic[0])}_MRI_ {topic[1]:.2f}.png"), dpi=600, bbox_inches='tight',pad_inches=0)
+            plt.savefig(
+                os.path.join(output_result_dir, f"Topic_{int(topic[0])}_MRI_ {topic[1]:.2f}.png"),
+                dpi=600, bbox_inches='tight', pad_inches=0
+            )
             plt.close()
 
 
-def visualize_filtered_topics_by_mri(adata, n_top_topics=None,spot_size=150,out_dir=None):
-    """
-    Visualize the top topics based on Moran's I values.
-
-    Parameters:
-    adata : AnnData
-        The AnnData object containing Moran's I values in `adata.uns["topic_mri_list"]`.
-    n_top_topics : int, optional
-        The number of top topics to visualize. If None, visualize all topics.
-    """
+def visualize_filtered_topics_by_mri(adata, n_top_topics=None, spot_size=150, out_dir=None):
 
     adata_plot = adata.copy()
-    
-
-    filtered_W = adata_plot.obsm["W_nmf_filtered"] 
+    filtered_W = adata_plot.obsm["W_nmf_filtered"]
 
     if "filtered_topic_mri_list" not in adata_plot.uns:
         raise ValueError("filtered_topic_mri_list not found in adata.uns. Please run `filter_and_update_nmf_topics` first.")
@@ -101,14 +89,13 @@ def visualize_filtered_topics_by_mri(adata, n_top_topics=None,spot_size=150,out_
     filtered_topics = [item[0] for item in filtered_topic_mri_list]
     filtered_MRI = [item[1] for item in filtered_topic_mri_list]
     
-    for i in range(filtered_W.shape[1]):  # Iterate over all topics
+    for i in range(filtered_W.shape[1]):  # Iterate all topics
         adata_plot.obs[f"Topic_{filtered_topics[i]}"] = filtered_W[:, i]
         
-
     # Get and sort Moran's I list
     filtered_topic_mri_sorted = sorted(filtered_topic_mri_list, key=lambda x: x[1], reverse=True)
 
-    # Select the top n_top_topics topics
+    # Select top n_top_topics topics
     if n_top_topics is not None:
         filtered_topic_mri_sorted = filtered_topic_mri_sorted[:n_top_topics]
     for topic in filtered_topic_mri_sorted:
@@ -126,11 +113,14 @@ def visualize_filtered_topics_by_mri(adata, n_top_topics=None,spot_size=150,out_
             if out_dir:
                 # Ensure output directory exists
                 os.makedirs(out_dir, exist_ok=True)
-                output_result_dir = out_dir+"\\select_topics_by_mri"
+                output_result_dir = out_dir + "\\select_topics_by_mri"
                 if not os.path.exists(output_result_dir):
                     os.makedirs(output_result_dir)
         
-                plt.savefig(f"{output_result_dir}\\Topic_{int(topic[0])}_MRI_ {topic[1]}.png",dpi=600,bbox_inches='tight')
+                plt.savefig(
+                    f"{output_result_dir}\\Topic_{int(topic[0])}_MRI_ {topic[1]}.png",
+                    dpi=600, bbox_inches='tight'
+                )
                 plt.close()  # Close current figure to avoid overlap
 
         else:
@@ -147,38 +137,31 @@ def visualize_filtered_topics_by_mri(adata, n_top_topics=None,spot_size=150,out_
             if out_dir:
                 # Ensure output directory exists
                 os.makedirs(out_dir, exist_ok=True)
-                output_result_dir = out_dir+"\\select_topics_by_mri"
+                output_result_dir = out_dir + "\\select_topics_by_mri"
                 if not os.path.exists(output_result_dir):
                     os.makedirs(output_result_dir)
         
-                plt.savefig(f"{output_result_dir}\\Topic_{int(topic[0])}_MRI_ {topic[1]:.2f}.png",dpi=600,bbox_inches='tight')
+                plt.savefig(
+                    f"{output_result_dir}\\Topic_{int(topic[0])}_MRI_ {topic[1]:.2f}.png",
+                    dpi=600, bbox_inches='tight'
+                )
                 plt.close()  # Close current figure to avoid overlap
 
 
 def visualize_topics_imp(adata, figsize=(10, 6)):
-    """
-    Plot a bar chart of feature importance by topic.
-    
-    Parameters:
-    sorted_importance : list or array
-        A list or array of feature importance values sorted in descending order.
-    sorted_topics : list or array
-        A list or array of corresponding topic labels sorted in the same order as sorted_importance.
-    figsize : tuple, optional
-        The size of the figure, default is (10, 6).
-    """
+
     if "sorted_indices_imp" not in adata.uns:
         raise ValueError("sorted_indices_imp not found in adata.uns. Please run `fit_rf_and_extract_importance` first.")
     
     sorted_indices_imp = adata.uns["sorted_indices_imp"]
-    sorted_indices  = [item[0] for item in sorted_indices_imp]
+    sorted_indices = [item[0] for item in sorted_indices_imp]
     sorted_importance = [item[1] for item in sorted_indices_imp]
 
     # Get original topic indices
     filtered_topic_mri_list = adata.uns["filtered_topic_mri_list"]
     filtered_topics = [item[0] for item in filtered_topic_mri_list]
     
-    sorted_topics  = [f"Topic {filtered_topics[i]}" for i in sorted_indices]  # Sorted topic names
+    sorted_topics = [f"Topic {filtered_topics[i]}" for i in sorted_indices]  # Sorted topic names
 
     # Create plot
     plt.figure(figsize=figsize)
@@ -190,16 +173,17 @@ def visualize_topics_imp(adata, figsize=(10, 6)):
     plt.tight_layout()
     plt.show()
 
-def visualize_filtered_topics_by_RF(adata, 
-                                    spot_size=150, 
-                                    out_dir =None,
-                                    figsize=(3, 3),
-                                    fontsize=7, 
-                                    frameon=None, 
-                                    legend_loc="right margin", 
-                                    colorbar_loc="right",
-                                    show_title=True):
-
+def visualize_filtered_topics_by_RF(
+    adata, 
+    spot_size=150, 
+    out_dir=None,
+    figsize=(3, 3),
+    fontsize=7, 
+    frameon=None, 
+    legend_loc="right margin", 
+    colorbar_loc="right",
+    show_title=True
+):
     plt.rcParams["figure.figsize"] = figsize  # Set global figure size
     plt.rcParams["font.size"] = fontsize      # Set global font size
     plt.rcParams["font.family"] = "Arial"     # Set global font to Arial
@@ -207,7 +191,7 @@ def visualize_filtered_topics_by_RF(adata,
     adata_plot = adata.copy()
 
     sorted_indices_imp = adata.uns["sorted_indices_imp"]
-    sorted_indices  = [item[0] for item in sorted_indices_imp]
+    sorted_indices = [item[0] for item in sorted_indices_imp]
     sorted_importance = [item[1] for item in sorted_indices_imp]
 
     # Get original topic indices
@@ -217,7 +201,7 @@ def visualize_filtered_topics_by_RF(adata,
     filtered_W = adata_plot.obsm["W_nmf_filtered"] 
     
     # Update Scanpy visualization
-    top_n = len(adata.uns['final_topics'])  # Visualize top_n topics
+    top_n = len(adata.uns['final_topics'])  # Select top_n topics to visualize
     top_indices = sorted_indices[:top_n]
 
     # Add most important topics to adata.obs (if not already added)
@@ -225,50 +209,47 @@ def visualize_filtered_topics_by_RF(adata,
         adata_plot.obs[f"Topic_{int(filtered_topics[int(i)])}"] = filtered_W[:, int(i)]
 
     # Visualize spatial distribution of top_n topics
-
     for idx, top_idx in enumerate(top_indices):
         topic_title = [f"Topic {int(filtered_topics[int(top_idx)])}, Imp : {sorted_importance[idx]:.2f}"] if show_title else ""
 
         if 'spatial' in adata.uns:
-            sc.pl.spatial(adata, 
-                        color=[f"Topic_{int(filtered_topics[int(top_idx)])}"], 
-                        title=topic_title, 
-                        img_key= None,
-                        spot_size=spot_size, 
-                        cmap="inferno",
-                        frameon=frameon, 
-                        legend_loc=legend_loc, 
-                        colorbar_loc=colorbar_loc,
-                        show=False)
+            sc.pl.spatial(
+                adata, 
+                color=[f"Topic_{int(filtered_topics[int(top_idx)])}"], 
+                title=topic_title, 
+                img_key=None,
+                spot_size=spot_size, 
+                cmap="inferno",
+                frameon=frameon, 
+                legend_loc=legend_loc, 
+                colorbar_loc=colorbar_loc,
+                show=False
+            )
         else:
-            sc.pl.spatial(adata, 
-                        color=[f"Topic_{int(filtered_topics[int(top_idx)])}"], 
-                        title=topic_title, 
-                        cmap="inferno", 
-                        spot_size=spot_size,
-                        frameon=frameon, 
-                        legend_loc=legend_loc, 
-                        colorbar_loc=colorbar_loc, 
-                        show=False)
+            sc.pl.spatial(
+                adata, 
+                color=[f"Topic_{int(filtered_topics[int(top_idx)])}"], 
+                title=topic_title, 
+                cmap="inferno", 
+                spot_size=spot_size,
+                frameon=frameon, 
+                legend_loc=legend_loc, 
+                colorbar_loc=colorbar_loc, 
+                show=False
+            )
 
         if out_dir:
             output_result_dir = os.path.join(out_dir, "select_topics_by_RF")
             os.makedirs(output_result_dir, exist_ok=True)
-            plt.savefig(os.path.join(output_result_dir, f"Topic_{int(filtered_topics[int(top_idx)])}_Imp_ {sorted_importance[idx]:.2f}.png"), dpi=600, bbox_inches='tight',pad_inches=0)
+            plt.savefig(
+                os.path.join(output_result_dir, f"Topic_{int(filtered_topics[int(top_idx)])}_Imp_ {sorted_importance[idx]:.2f}.png"),
+                dpi=600, bbox_inches='tight', pad_inches=0
+            )
             plt.close()
-      
 
-import matplotlib.pyplot as plt
-import seaborn as sns
+
 def plot_svgs_and_no_svgs_rank_distribution(adata):
-    """
-    Visualize the distribution of adata.var['svgs_rank'] and adata.var['no_svgs_rank'],
-    including both histogram and kernel density estimation (KDE).
 
-    Parameters:
-    adata : AnnData
-        AnnData object, must contain 'svgs_rank' and 'no_svgs_rank' columns.
-    """
     # Ensure 'svgs_rank' and 'no_svgs_rank' columns exist
     if "svgs_rank" not in adata.var or "no_svgs_rank" not in adata.var:
         raise ValueError("adata.var must contain 'svgs_rank' and 'no_svgs_rank' columns")
@@ -297,31 +278,8 @@ def plot_svgs_and_no_svgs_rank_distribution(adata):
     # Show figure
     plt.show()
 
-
-import seaborn as sns
-import matplotlib.pyplot as plt
-
 def plot_scatter_with_regression(adata, x_column, y_column, plot_title, xlabel, ylabel):
-    """
-    Plot a scatter plot with regression line, x and y columns can be specified by user.
-    
-    Parameters:
-    - adata : AnnData
-        AnnData object containing the columns to plot.
-    - x_column : str
-        Column name for x axis data.
-    - y_column : str
-        Column name for y axis data.
-    - plot_title : str
-        Title of the plot.
-    - xlabel : str
-        Label for x axis.
-    - ylabel : str
-        Label for y axis.
-    
-    Returns:
-    - None
-    """
+
     # Ensure x and y columns exist
     if x_column not in adata.var or y_column not in adata.var:
         raise ValueError(f"adata.var must contain '{x_column}' and '{y_column}' columns")
@@ -342,37 +300,26 @@ def plot_scatter_with_regression(adata, x_column, y_column, plot_title, xlabel, 
     plt.show()
 
 
+def visualize_top_genes_with_zscore(
+    adata, 
+    n=25, 
+    spot_size=150, 
+    out_dir=None,
+    figsize=(6, 6), 
+    fontsize=7,
+    frameon=None, 
+    legend_loc="right margin", 
+    colorbar_loc="right",
+    show_title=True
+):
 
-def visualize_top_genes_with_zscore(adata, 
-                                    n=25, 
-                                    spot_size=150, 
-                                    out_dir=None,
-                                    figsize=(6, 6), 
-                                    fontsize=7,
-                                    frameon=None, 
-                                    legend_loc="right margin", 
-                                    colorbar_loc="right",
-                                    show_title=True):
-    """
-    Visualize the top n genes for each topic based on adata.uns['top_genes_all_dict'].
-
-    Parameters:
-    - adata : AnnData
-        AnnData object containing spatial expression data.
-    - n : int
-        Number of genes to visualize per topic (default 25).
-    - spot_size : int
-        Spot size (for data without `spatial`).
-    - out_dir : str
-        Output directory, if None images are not saved.
-    """
     plt.rcParams["figure.figsize"] = figsize  # Set global figure size
     plt.rcParams["font.size"] = fontsize      # Set global font size
     plt.rcParams["font.family"] = "Arial"     # Set global font to Arial
-    # 1. Get topic-gene information
+    # 1. Get topic-gene info
     top_genes_all_dict = adata.uns.get("top_genes_all_dict", None)
     if top_genes_all_dict is None:
-        raise ValueError("Did not find 'top_genes_all_dict' in adata.uns!")
+        raise ValueError("Could not find 'top_genes_all_dict' in adata.uns!")
     
     if "W_nmf" not in adata.obsm:
         raise ValueError("adata.obsm['W_nmf'] does not exist, cannot get NMF topic info!")
@@ -397,34 +344,41 @@ def visualize_top_genes_with_zscore(adata,
         # 2.3 Assign topic info to `adata.obs`
         adata.obs[f"Topic_{topic_idx}"] = W[:, topic_idx]
 
-        # 2.4 Visualize topic overall
+        # 2.4 Visualize topic
         topic_title = [f"Topic {topic_idx}"] if show_title else ""
         if 'spatial' in adata.uns:
-            sc.pl.spatial(adata, 
-                          color=[f"Topic_{topic_idx}"], 
-                          title=topic_title, 
-                          img_key= None,
-                          spot_size=spot_size, 
-                          cmap="inferno",
-                          frameon=frameon, 
-                          legend_loc=legend_loc, 
-                          colorbar_loc=colorbar_loc,
-                          show=False)
+            sc.pl.spatial(
+                adata, 
+                color=[f"Topic_{topic_idx}"], 
+                title=topic_title, 
+                img_key=None,
+                spot_size=spot_size, 
+                cmap="inferno",
+                frameon=frameon, 
+                legend_loc=legend_loc, 
+                colorbar_loc=colorbar_loc,
+                show=False
+            )
         else:
-            sc.pl.spatial(adata, 
-                          color=[f"Topic_{topic_idx}"], 
-                          title=topic_title, 
-                          cmap="inferno", 
-                          spot_size=spot_size,
-                          frameon=frameon, 
-                          legend_loc=legend_loc, 
-                          colorbar_loc=colorbar_loc, 
-                          show=False)
+            sc.pl.spatial(
+                adata, 
+                color=[f"Topic_{topic_idx}"], 
+                title=topic_title, 
+                cmap="inferno", 
+                spot_size=spot_size,
+                frameon=frameon, 
+                legend_loc=legend_loc, 
+                colorbar_loc=colorbar_loc, 
+                show=False
+            )
 
         if out_dir:
             output_result_dir = os.path.join(out_dir, "Z_socre_sorted", f"Topic_{topic_idx}_genes")
             os.makedirs(output_result_dir, exist_ok=True)
-            plt.savefig(os.path.join(output_result_dir, f"Topic_{topic_idx}.png"), dpi=600, bbox_inches='tight',pad_inches=0)
+            plt.savefig(
+                os.path.join(output_result_dir, f"Topic_{topic_idx}.png"),
+                dpi=600, bbox_inches='tight', pad_inches=0
+            )
             plt.close()
 
         # 2.5 Visualize each gene
@@ -436,7 +390,7 @@ def visualize_top_genes_with_zscore(adata,
                 print(f"Warning: gene {gene} not in adata.var_names, skipping!")
                 continue
 
-            # Get z_score for the gene
+            # Get z_score for gene
             gene_idx = np.where(adata.var_names == gene)[0][0]
             gene_zscore = adata.varm["H_zscore"][gene_idx, idx]
 
@@ -445,68 +399,64 @@ def visualize_top_genes_with_zscore(adata,
 
             # Generate file path (replace illegal characters)
             gene_safe = re.sub(r'[<>:"/\\|?*]', "_", gene)
-            file_path = os.path.join(output_result_dir, f"Topic_{topic_idx}_No_{top_n}_Gene_{gene_safe}_z_score_{gene_zscore:.2f}.png")
+            file_path = os.path.join(
+                output_result_dir,
+                f"Topic_{topic_idx}_No_{top_n}_Gene_{gene_safe}_z_score_{gene_zscore:.2f}.png"
+            )
 
             # Visualization
-            gene_title = [f"{gene} \n (z_score: {gene_zscore:.2f})"] if show_title else ""  # Control title by show_title
+            gene_title = [f"{gene} \n (z_score: {gene_zscore:.2f})"] if show_title else ""
             if 'spatial' in adata.uns:
-                sc.pl.spatial(adata, 
-                              color=[gene], 
-                              img_key= None,
-                              spot_size=spot_size, 
-                              cmap="inferno", 
-                              title=gene_title, 
-                              frameon=frameon, 
-                              legend_loc=legend_loc, 
-                              colorbar_loc=colorbar_loc, 
-                              show=False)
+                sc.pl.spatial(
+                    adata, 
+                    color=[gene], 
+                    img_key=None,
+                    spot_size=spot_size, 
+                    cmap="inferno", 
+                    title=gene_title, 
+                    frameon=frameon, 
+                    legend_loc=legend_loc, 
+                    colorbar_loc=colorbar_loc, 
+                    show=False
+                )
             else:
-                sc.pl.spatial(adata, 
-                              color=[gene], 
-                              cmap="inferno", 
-                              spot_size=spot_size, 
-                              title=gene_title, 
-                              frameon=frameon, 
-                              legend_loc=legend_loc, 
-                              colorbar_loc=colorbar_loc, 
-                              show=False)
+                sc.pl.spatial(
+                    adata, 
+                    color=[gene], 
+                    cmap="inferno", 
+                    spot_size=spot_size, 
+                    title=gene_title, 
+                    frameon=frameon, 
+                    legend_loc=legend_loc, 
+                    colorbar_loc=colorbar_loc, 
+                    show=False
+                )
 
             if out_dir:
-                plt.savefig(file_path, dpi=600, bbox_inches='tight',pad_inches=0)
+                plt.savefig(file_path, dpi=600, bbox_inches='tight', pad_inches=0)
                 plt.close()
 
 
-def visualize_top_genes_with_corr(adata, 
-                                  n=25, 
-                                  spot_size=150, 
-                                  out_dir=None,
-                                  figsize=(6, 6), 
-                                  fontsize=7,
-                                  frameon=None, 
-                                  legend_loc="right margin", 
-                                  colorbar_loc="right",
-                                  show_title=True
-                                  ):
-    """
-    Visualize the top n genes for each topic based on adata.uns['marker_genes_all_dict'].
+def visualize_top_genes_with_corr(
+    adata, 
+    n=25, 
+    spot_size=150, 
+    out_dir=None,
+    figsize=(6, 6), 
+    fontsize=7,
+    frameon=None, 
+    legend_loc="right margin", 
+    colorbar_loc="right",
+    show_title=True
+):
 
-    Parameters:
-    - adata : AnnData
-        AnnData object containing spatial expression data.
-    - n : int
-        Number of genes to visualize per topic (default 25).
-    - spot_size : int
-        Spot size (for data without `spatial`).
-    - out_dir : str
-        Output directory, if None images are not saved.
-    """
     plt.rcParams["figure.figsize"] = figsize  # Set global figure size
     plt.rcParams["font.size"] = fontsize      # Set global font size
     plt.rcParams["font.family"] = "Arial"     # Set global font to Arial
-    # 1. Get topic-gene information
+    # 1. Get topic-gene info
     marker_genes_all_dict = adata.uns.get("marker_genes_all_dict", None)
     if marker_genes_all_dict is None:
-        raise ValueError("Did not find 'marker_genes_all_dict' in adata.uns!")
+        raise ValueError("Could not find 'marker_genes_all_dict' in adata.uns!")
     
     if "W_nmf" not in adata.obsm:
         raise ValueError("adata.obsm['W_nmf'] does not exist, cannot get NMF topic info!")
@@ -532,35 +482,41 @@ def visualize_top_genes_with_corr(adata,
         # 2.3 Assign topic info to `adata.obs`
         adata.obs[f"Topic_{topic_idx}"] = W[:, topic_idx]
         
-
-        # 2.4 Visualize topic overall
+        # 2.4 Visualize topic
         topic_title = [f"Topic {topic_idx}"] if show_title else ""
         if 'spatial' in adata.uns:
-            sc.pl.spatial(adata, 
-                          color=[f"Topic_{topic_idx}"], 
-                          title=topic_title, 
-                          img_key= None,
-                          spot_size=spot_size, 
-                          cmap="inferno", 
-                          frameon=frameon, 
-                          legend_loc=legend_loc, 
-                          colorbar_loc=colorbar_loc, 
-                          show=False)
+            sc.pl.spatial(
+                adata, 
+                color=[f"Topic_{topic_idx}"], 
+                title=topic_title, 
+                img_key=None,
+                spot_size=spot_size, 
+                cmap="inferno", 
+                frameon=frameon, 
+                legend_loc=legend_loc, 
+                colorbar_loc=colorbar_loc, 
+                show=False
+            )
         else:
-            sc.pl.spatial(adata, 
-                          color=[f"Topic_{topic_idx}"], 
-                          title=topic_title, 
-                          cmap="inferno", 
-                          spot_size=spot_size, 
-                          frameon=frameon, 
-                          legend_loc=legend_loc, 
-                          colorbar_loc=colorbar_loc, 
-                          show=False)
+            sc.pl.spatial(
+                adata, 
+                color=[f"Topic_{topic_idx}"], 
+                title=topic_title, 
+                cmap="inferno", 
+                spot_size=spot_size, 
+                frameon=frameon, 
+                legend_loc=legend_loc, 
+                colorbar_loc=colorbar_loc, 
+                show=False
+            )
 
         if out_dir:
             output_result_dir = os.path.join(out_dir, "Corr_sorted", f"Topic_{topic_idx}_genes")
             os.makedirs(output_result_dir, exist_ok=True)
-            plt.savefig(os.path.join(output_result_dir, f"Topic_{topic_idx}.png"), dpi=600, bbox_inches='tight',pad_inches=0)
+            plt.savefig(
+                os.path.join(output_result_dir, f"Topic_{topic_idx}.png"),
+                dpi=600, bbox_inches='tight', pad_inches=0
+            )
             plt.close()
 
         # 2.5 Visualize each gene
@@ -572,79 +528,73 @@ def visualize_top_genes_with_corr(adata,
                 print(f"Warning: gene {gene} not in adata.var_names, skipping!")
                 continue
 
-            # Get correlation for the gene
+            # Get correlation for gene
             gene_idx = np.where(adata.var_names == gene)[0][0]
             gene_corr = gene_topic_corr[gene_idx, idx]
             
-
             if np.isnan(gene_corr):
                 gene_corr = 0.0  # Handle NaN
             
             # Generate file path (replace illegal characters)
             gene_safe = re.sub(r'[<>:"/\\|?*]', "_", gene)
-            file_path = os.path.join(output_result_dir, f"Topic_{topic_idx}_No_{top_n}_Gene_{gene_safe}_corr_{gene_corr:.2f}.png")
+            file_path = os.path.join(
+                output_result_dir,
+                f"Topic_{topic_idx}_No_{top_n}_Gene_{gene_safe}_corr_{gene_corr:.2f}.png"
+            )
                 
             # Visualization
-            gene_title = [f"{gene}  \n (corr: {gene_corr:.2f})"] if show_title else ""  # Control title by show_title
+            gene_title = [f"{gene}  \n (corr: {gene_corr:.2f})"] if show_title else ""
             if 'spatial' in adata.uns:
-                sc.pl.spatial(adata, 
-                              color=[gene], 
-                              cmap="inferno", 
-                              img_key= None,
-                              spot_size=spot_size, 
-                              title=gene_title, 
-                              frameon=frameon, 
-                              legend_loc=legend_loc, 
-                              colorbar_loc=colorbar_loc, 
-                              show=False)
+                sc.pl.spatial(
+                    adata, 
+                    color=[gene], 
+                    cmap="inferno", 
+                    img_key=None,
+                    spot_size=spot_size, 
+                    title=gene_title, 
+                    frameon=frameon, 
+                    legend_loc=legend_loc, 
+                    colorbar_loc=colorbar_loc, 
+                    show=False
+                )
             else:
-                sc.pl.spatial(adata, 
-                              color=[gene], 
-                              cmap="inferno", 
-                              spot_size=spot_size, 
-                              title=gene_title, 
-                              frameon=frameon, 
-                              legend_loc=legend_loc, 
-                              colorbar_loc=colorbar_loc, 
-                              show=False)
+                sc.pl.spatial(
+                    adata, 
+                    color=[gene], 
+                    cmap="inferno", 
+                    spot_size=spot_size, 
+                    title=gene_title, 
+                    frameon=frameon, 
+                    legend_loc=legend_loc, 
+                    colorbar_loc=colorbar_loc, 
+                    show=False
+                )
 
             if out_dir:
-                plt.savefig(file_path, dpi=600, bbox_inches='tight',pad_inches=0)
+                plt.savefig(file_path, dpi=600, bbox_inches='tight', pad_inches=0)
                 plt.close()
 
 def plot_umap(df):
-    """
-    Plot UMAP visualization colored by Topic.
-    
-    Parameters:
-    - df: pd.DataFrame, must contain "UMAP1", "UMAP2", "Topic" columns
-    - title: str, optional, plot title
-    - palette: str, optional, Seaborn color palette (default "tab20" for ≤ 20 categories)
-    
-    Returns:
-    - Draws a UMAP scatter plot
-    """
-    # Create color mapping
 
     palette = [
-    '#F4E8B8',  '#EEC30E',  '#8F0100',  '#058187',  '#0C4DA7',  
-    '#B44541',  '#632621',  '#92C7A3',  '#D98882',  '#6A93CB',  
-    '#F0C94A',  '#AD6448',  '#4F6A9C',  '#CCB9A1',  '#0B3434',  
-    '#3C4F76',  '#C1D354',  '#7D5BA6',  '#F28522',  '#4A9586',
-    '#FF6F61',  '#D32F2F',  '#1976D2',  '#388E3C',  '#FBC02D', 
-    '#8E24AA',  '#0288D1',  '#7B1FA2',  '#F57C00',  '#C2185B',
-    '#1B4F72',  '#117864',  '#D4AC0D',  '#922B21',  '#6C3483',
-    '#1F618D',  '#A04000',  '#196F3D',  '#2C3E50',  '#F39C12',
-    '#7D6608',  '#4A235A',  '#D68910',  '#B03A2E',  '#7B241C',
-    '#2471A3',  '#148F77',  '#9C640C',  '#6E2C00',  '#512E5F',
-    '#154360',  '#145A32'
-        ]
+        '#F4E8B8',  '#EEC30E',  '#8F0100',  '#058187',  '#0C4DA7',  
+        '#B44541',  '#632621',  '#92C7A3',  '#D98882',  '#6A93CB',  
+        '#F0C94A',  '#AD6448',  '#4F6A9C',  '#CCB9A1',  '#0B3434',  
+        '#3C4F76',  '#C1D354',  '#7D5BA6',  '#F28522',  '#4A9586',
+        '#FF6F61',  '#D32F2F',  '#1976D2',  '#388E3C',  '#FBC02D', 
+        '#8E24AA',  '#0288D1',  '#7B1FA2',  '#F57C00',  '#C2185B',
+        '#1B4F72',  '#117864',  '#D4AC0D',  '#922B21',  '#6C3483',
+        '#1F618D',  '#A04000',  '#196F3D',  '#2C3E50',  '#F39C12',
+        '#7D6608',  '#4A235A',  '#D68910',  '#B03A2E',  '#7B241C',
+        '#2471A3',  '#148F77',  '#9C640C',  '#6E2C00',  '#512E5F',
+        '#154360',  '#145A32'
+    ]
 
     unique_topics = sorted(set(df["Topic"]))  # Get unique topics and sort
     topic_palette = sns.color_palette(palette, len(unique_topics))  # Generate palette
     topic_color_map = {topic: color for topic, color in zip(unique_topics, topic_palette)}  # Color mapping
 
-    # Draw UMAP plot
+    # Plot UMAP
     plt.figure(figsize=(10, 10))
     sns.scatterplot(
         data=df, x="UMAP1", y="UMAP2", hue="Topic", 
@@ -655,32 +605,19 @@ def plot_umap(df):
     plt.show()
 
 
-def visualize_genes_with_zscore(adata, 
-                                genes, 
-                                spot_size=450, 
-                                out_dir=None,
-                                figsize=(6, 6), 
-                                fontsize=7,
-                                frameon=None, 
-                                legend_loc="right margin", 
-                                colorbar_loc="right",
-                                show_title=True):
-    """
-    Visualize spatial expression for a list or dict of genes.
-
-    Parameters:
-    - adata : AnnData
-        AnnData object containing spatial expression data.
-    - genes : list or dict
-        If list, genes to visualize.
-        If dict, key is group name, value is gene list.
-    - spot_size : int
-        Spatial spot size.
-    - out_dir : str
-        Output directory, if None images are not saved.
-    - figsize, fontsize, frameon, legend_loc, colorbar_loc, show_title
-        Other plotting parameters.
-    """
+def visualize_genes_with_zscore(
+    adata, 
+    genes, 
+    spot_size=450, 
+    out_dir=None,
+    figsize=(6, 6), 
+    fontsize=7,
+    frameon=None, 
+    legend_loc="right margin", 
+    colorbar_loc="right",
+    show_title=True
+):
+    
     # Set global plotting parameters
     plt.rcParams["figure.figsize"] = figsize
     plt.rcParams["font.size"] = fontsize
@@ -719,16 +656,18 @@ def visualize_genes_with_zscore(adata,
             gene_title = [f"{gene} \n (z_score: {gene_zscore:.2f})"] if show_title else ""
 
             # Visualization
-            sc.pl.spatial(adata, 
-                          color=[gene], 
-                          img_key=None,
-                          spot_size=spot_size, 
-                          cmap="inferno", 
-                          title=gene_title, 
-                          frameon=frameon, 
-                          legend_loc=legend_loc, 
-                          colorbar_loc=colorbar_loc, 
-                          show=False)
+            sc.pl.spatial(
+                adata, 
+                color=[gene], 
+                img_key=None,
+                spot_size=spot_size, 
+                cmap="inferno", 
+                title=gene_title, 
+                frameon=frameon, 
+                legend_loc=legend_loc, 
+                colorbar_loc=colorbar_loc, 
+                show=False
+            )
 
             # Save image
             if sub_out_dir:
@@ -751,20 +690,21 @@ def plot_marker_genes(
     frameon=None, 
     legend_loc="right margin", 
     colorbar_loc="right",
-    show_title=True
+    show_title=True,
+    palette_dict=None
 ):
     plt.rcParams["figure.figsize"] = figsize  # Set global figure size
     plt.rcParams["font.size"] = fontsize      # Set global font size
     plt.rcParams["font.family"] = "Arial"     # Set global font to Arial
 
-    # Ensure domain is integer and convert to categorical
+    # Ensure domain is int and convert to categorical
     adata.obs[userep] = adata.obs[userep].astype(int)
     adata.obs[userep] = adata.obs[userep].astype("category")
 
     # Get all unique domains
     unique_domains = adata.obs[userep].cat.categories
-
-    palette = [
+    if palette_dict is None:
+        palette = [
             '#F4E8B8',  '#EEC30E',  '#8F0100',  '#058187',  '#0C4DA7',  
             '#B44541',  '#632621',  '#92C7A3',  '#D98882',  '#6A93CB',  
             '#F0C94A',  '#AD6448',  '#4F6A9C',  '#CCB9A1',  '#0B3434',  
@@ -778,20 +718,20 @@ def plot_marker_genes(
             '#154360',  '#145A32'
         ]
 
-    palette_dict = {label: palette[i] for i, label in enumerate(unique_domains)}
+        palette_dict = {label: palette[i] for i, label in enumerate(unique_domains)}
 
     # Check required fields
     if "domain_mapping_topic" not in adata.uns:
-        raise KeyError("Did not find adata.uns['domain_mapping_topic']")
+        raise KeyError("Could not find adata.uns['domain_mapping_topic']")
     if "domain_to_genes" not in adata.uns:
-        raise KeyError("Did not find adata.uns['domain_to_genes']")
+        raise KeyError("Could not find adata.uns['domain_to_genes']")
     if userep not in adata.obs.columns:
         raise KeyError(f"{userep} not found in adata.obs")
 
     domain = str(domain)
     topic = adata.uns["domain_mapping_topic"].get(domain, None)
     if topic is None:
-        raise ValueError(f"Cannot find domain {domain} in adata.uns['domain_to_best_topic']")
+        raise ValueError(f"Could not find domain {domain} in adata.uns['domain_to_best_topic']")
     
     gene_corr_pairs = adata.uns["domain_to_genes"].get(domain, [])
     gene_list = [gene for gene, _ in gene_corr_pairs][:n_genes]
@@ -804,21 +744,23 @@ def plot_marker_genes(
         os.makedirs(out_dir, exist_ok=True)
         
         # ---------- Figure 1: domain highlight ----------
-        adata.obs["highlight"] = adata.obs[userep].astype(str).apply(lambda x: "highlight" if x == domain else "other")
+        palette = {label: "lightgray" for label in unique_domains}
+        palette[int(domain)] = palette_dict[int(domain)]
         domain_title = [f"Domain {domain}"] if show_title else ""
         sc.pl.spatial(
             adata,
-            color="highlight",
-            palette={"highlight": "#e41a1c", "other": "#d3d3d3"},
+            color=[userep],
+            palette=palette,
             title=domain_title,
-            img_key= None,
+            img_key=None,
             spot_size=spot_size,
-            frameon=frameon, 
-            legend_loc=legend_loc, 
-            colorbar_loc=colorbar_loc, 
+            frameon=False, 
+            legend_loc=None, 
+            wspace=0.1,
+            colorbar_loc=None, 
             show=False
         )
-        plt.savefig(os.path.join(out_dir, f"{domain}_highlight.png"), dpi=600, bbox_inches='tight',pad_inches=0)
+        plt.savefig(os.path.join(out_dir, f"{domain}_highlight.png"), dpi=600, bbox_inches='tight', pad_inches=0)
         plt.close()
     
         # ---------- Figure 2: topic expression ----------
@@ -829,7 +771,7 @@ def plot_marker_genes(
             adata,
             color=topic,
             title=topic_title,
-            img_key= None,
+            img_key=None,
             spot_size=spot_size,
             frameon=frameon, 
             legend_loc=legend_loc, 
@@ -844,7 +786,7 @@ def plot_marker_genes(
             if gene not in adata.var_names:
                 print(f" gene {gene} not found in adata.var_names, skipping.")
                 continue
-            gene_title =  [f"{gene} (Corr:{gene_corr[top_n]:.3f})"] if show_title else ""  
+            gene_title = [f"{gene} (Corr:{gene_corr[top_n]:.3f})"] if show_title else ""  
             sc.pl.spatial(
                 adata,
                 color=gene,
@@ -855,35 +797,36 @@ def plot_marker_genes(
                 colorbar_loc=colorbar_loc, 
                 show=False
             )
-            plt.savefig(os.path.join(out_dir, f"{domain}_{gene}.png"), dpi=600,pad_inches=0)
+            plt.savefig(os.path.join(out_dir, f"{domain}_{gene}.png"), dpi=600, pad_inches=0)
             plt.close()
 
-    
     # ---------- display: domain and topics ----------    
     fig, axs = plt.subplots(1, 3, figsize=(figsize[0]*3, figsize[1]))  # Keep original size for each subplot
 
-    sc.pl.spatial(adata,
-              img_key=None,
-              color=[userep],
-              title=[userep],
-              spot_size = 1.3,
-              frameon= False, 
-          #   legend_loc=None, 
-              wspace=-1, 
-              colorbar_loc=None, 
-              palette=palette_dict,
-              ax=axs[0],
-              show=False)
+    sc.pl.spatial(
+        adata,
+        img_key=None,
+        color=[userep],
+        title=[userep],
+        spot_size=spot_size,
+        frameon=False,
+        legend_loc=legend_loc,
+        wspace=-1,
+        colorbar_loc=None,
+        palette=palette_dict,
+        ax=axs[0],
+        show=False
+    )
+    
     palette = {label: "lightgray" for label in unique_domains}
     palette[int(domain)] = palette_dict[int(domain)]
-
     domain_title = [f"Domain {domain}"] if show_title else ""
     sc.pl.spatial(
         adata,
         color=[userep],
         palette=palette,
         title=domain_title,
-        img_key= None,
+        img_key=None,
         spot_size=spot_size,
         frameon=False, 
         legend_loc=None, 
@@ -900,7 +843,7 @@ def plot_marker_genes(
         adata,
         color=topic,
         title=topic_title,
-        img_key= None,
+        img_key=None,
         spot_size=spot_size,
         frameon=False, 
         legend_loc=None, 
@@ -911,7 +854,7 @@ def plot_marker_genes(
     )
         
     # ---------- display: top n_genes ----------
-    title_list= []
+    title_list = []
     for top_n, gene in enumerate(gene_list):
         if gene not in adata.var_names:
             print(f" gene {gene} not found in adata.var_names, skipping.")
@@ -921,29 +864,30 @@ def plot_marker_genes(
     sc.pl.spatial(
         adata,
         color=gene_list,
-        title =title_list,
+        title=title_list,
         spot_size=spot_size,
         frameon=False, 
         legend_loc=None, 
         ncols=ncols,
-        # wspace=-0.1,
         colorbar_loc=None, 
         show=False
     )
 
-def plot_topics (adata, 
-                 uns_key="final_topics", 
-                 img_key=None, 
-                 spot_size=1.3, 
-                 ncols=5,
-                 figsize=(4, 4),
-                 fontsize=10,
-                 frameon=None, 
-                 cmap="inferno",
-                 legend_loc="right margin", 
-                 colorbar_loc="right",
-                 show=True):
-    
+
+def plot_topics(
+    adata, 
+    uns_key="final_topics", 
+    img_key=None, 
+    spot_size=1.3, 
+    ncols=5,
+    figsize=(4, 4),
+    fontsize=10,
+    frameon=None, 
+    cmap="inferno",
+    legend_loc="right margin", 
+    colorbar_loc="right",
+    show=True
+):
     plt.rcParams["figure.figsize"] = figsize  # Set global figure size
     plt.rcParams["font.size"] = fontsize      # Set global font size
     plt.rcParams["font.family"] = "Arial"     # Set global font to Arial
@@ -951,7 +895,7 @@ def plot_topics (adata,
     # Get and copy final_topics
     final_topics = adata.uns[uns_key].copy()
     
-    # Add prefix to generate labels for visualization
+    # Add prefix for visualization labels
     labeled_topics = [f"Topic_{idx}" for idx in final_topics]
     
     # Plot
@@ -962,7 +906,7 @@ def plot_topics (adata,
         title=labeled_topics,
         spot_size=spot_size,
         frameon=frameon, 
-        cmap= cmap,
+        cmap=cmap,
         wspace=-0.05,
         legend_loc=legend_loc, 
         colorbar_loc=colorbar_loc, 
@@ -970,19 +914,16 @@ def plot_topics (adata,
         show=show
     )
 
-import numpy as np
-import matplotlib.pyplot as plt
-import scanpy as sc
-
-def plot_neighbors_cut(adata,
-                       img_key=None,
-                       spot_size=1.3,
-                       figsize=(4, 4),
-                       frameon=False,
-                       legend_loc=None,
-                       colorbar_loc=None,
-                       show=True):
-
+def plot_neighbors_cut(
+    adata,
+    img_key=None,
+    spot_size=1.3,
+    figsize=(4, 4),
+    frameon=False,
+    legend_loc=None,
+    colorbar_loc=None,
+    show=True
+):
     # Extract original and optimized adjacency matrices
     adj_orig = adata.obsm["adj"]
     adj_opt = adata.obsm["adj_opt"]
@@ -991,7 +932,7 @@ def plot_neighbors_cut(adata,
     adj_orig = adj_orig.tocsr()
     adj_opt = adj_opt.tocsr()
 
-    # Difference in number of neighbors for each spot
+    # Difference in number of neighbors per spot
     deg_orig = np.array(adj_orig.sum(axis=1)).flatten()
     deg_opt = np.array(adj_opt.sum(axis=1)).flatten()
     reduced_neighbors = deg_orig - deg_opt
