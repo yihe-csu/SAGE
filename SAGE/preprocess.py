@@ -5,7 +5,6 @@ import numpy as np
 import scanpy as sc
 import scipy
 import scipy.sparse as sp
-from scipy.sparse import lil_matrix
 import pandas as pd
 from torch.backends import cudnn
 from sklearn.neighbors import NearestNeighbors 
@@ -19,12 +18,11 @@ from sklearn.metrics.pairwise import cosine_similarity
 import igraph as ig
 import leidenalg
 
-
 def construct_interaction_KNN(adata, n_neighbors=7):
     position = adata.obsm['spatial']
     n_spot = position.shape[0]
 
-    # Compute K nearest neighbors
+    # Calculate K nearest neighbors
     nbrs = NearestNeighbors(n_neighbors=n_neighbors + 1).fit(position)  
     _, indices = nbrs.kneighbors(position)
 
@@ -54,43 +52,30 @@ def compute_cosine_similarity_matrix(adata, use_rep='X_pca'):
     return cos_sim_mat
 
 def optimize_cut_adj_matrix(adata, threshold=0.2, min_neighbors=1):
-    """
-    Optimize adjacency matrix by removing cross-domain edges with low consensus probability,
-    ensuring each node retains at least min_neighbors neighbors.
 
-    Args:
-        adj_matrix (scipy.sparse.csr_matrix): Initial adjacency matrix (N, N).
-        pairwise_probabilities (numpy.ndarray): Consensus probability matrix (N, N).
-        threshold (float): Edges with probability below this value will be removed.
-        min_neighbors (int): Minimum number of neighbors to retain for each node.
-
-    Returns:
-        scipy.sparse.csr_matrix: Optimized adjacency matrix (N, N).
-        dict: Optimization info, including number of removed edges and neighbors per node.
-    """
     adj_matrix = adata.obsm["adj"].copy()
     pairwise_probabilities = adata.obsm["consensus_freq"].copy()
     n = adj_matrix.shape[0]
-
+    
     cut_spots = np.zeros(n, dtype=int)
-
-    # Convert adjacency matrix to COO format for easy access
+    
+    # Convert adjacency matrix to COO format
     coo_adj = adj_matrix.tocoo()
-
-    # Track number of removed edges
+    
+    # Record removed edges
     removed_edges = 0
 
     # Iterate over each node
     for i in range(n):
-        # Get neighbors of current node
+        # Get current node's neighbors
         neighbors = coo_adj.col[coo_adj.row == i]
         if len(neighbors) <= min_neighbors:
             continue  # Ensure basic connectivity, avoid removing too many neighbors
 
-        # Get consensus probabilities with neighbors
+        # Calculate co-occurrence probabilities with neighbors
         neighbor_probs = pairwise_probabilities[i, neighbors]
 
-        # Find neighbors with probability below threshold
+        # Find neighbors below threshold
         low_prob_neighbors = neighbors[neighbor_probs < threshold]
 
         # Ensure at least min_neighbors remain after removal
@@ -109,7 +94,7 @@ def optimize_cut_adj_matrix(adata, threshold=0.2, min_neighbors=1):
 
     # Ensure adjacency matrix remains sparse
     adj_matrix.eliminate_zeros()
-
+    
     # Record optimization info
     optimization_info = {
         "removed_edges": removed_edges,
@@ -120,57 +105,41 @@ def optimize_cut_adj_matrix(adata, threshold=0.2, min_neighbors=1):
 
 
 ################# feature graph #################
-from sklearn.neighbors import kneighbors_graph
-from scipy.sparse import csr_matrix
 
 def construct_interaction_by_feat(adata, n_neighbors=7):
     adj_matrix = adata.obsm["adj"].copy()
     pairwise_probabilities = adata.obsm["consensus_freq"].copy()
     cosine_sim_matrix = adata.obsm["cos_sim_mat"].copy()
 
-    optimized_add_adj_matrix, optimization_info = optimize_add_adj_matrix(adj_matrix, 
-                                                                          pairwise_probabilities, 
-                                                                          cosine_sim_matrix, 
-                                                                          max_edges_per_spot=n_neighbors)
-    # Store the sparse matrix without converting to dense to save memory
+    optimized_add_adj_matrix, optimization_info = optimize_add_adj_matrix(
+        adj_matrix, 
+        pairwise_probabilities, 
+        cosine_sim_matrix, 
+        max_edges_per_spot=n_neighbors
+    )
+    # Store sparse matrix, do not convert to dense, save memory
    
     print('>>> Graph_feat constructed!')
 
-    return optimized_add_adj_matrix , optimization_info
-    
-
-
+    return optimized_add_adj_matrix, optimization_info
 
 def optimize_add_adj_matrix(adj_matrix, pairwise_probabilities, cosine_sim_matrix, max_edges_per_spot):
-    """
-    Add edges based on consensus probability and cosine similarity.
-    For each node, select top 7 neighbors from both matrices and take the intersection,
-    while limiting the maximum number of added edges per node.
-
-    Args:
-        adj_matrix (scipy.sparse.csr_matrix): Original adjacency matrix (N, N).
-        pairwise_probabilities (numpy.ndarray): Consensus probability matrix (N, N).
-        cosine_sim_matrix (numpy.ndarray): Cosine similarity matrix (N, N).
-        max_edges_per_spot (int): Maximum number of edges to add per node.
-
-    Returns:
-        scipy.sparse.csr_matrix: Optimized adjacency matrix (N, N).
-        dict: Optimization info, including number of added edges per node and total added edges.
-    """
 
     adj_matrix = adj_matrix.copy().tolil()  # Use LIL format for efficient edge addition
     n = adj_matrix.shape[0]
     
-    # Track number of added edges per node
+    # Record number of added edges per node
     added_edges_per_spot = np.zeros(n, dtype=int)
     added_edges = 0
 
     # Iterate over each node
     for i in range(n):
-        # 1. Select neighbors with consensus probability == 1
+        # Get co-occurrence probability and cosine similarity for current node
+        
+        # 1. First select neighbors with co-occurrence probability 1
         full_prob_neighbors = np.where(pairwise_probabilities[i] == 1)[0]
 
-        # 2. If less than 7, fill up with highest consensus probability neighbors
+        # 2. If less than 7, supplement with highest co-occurrence probability neighbors
         if len(full_prob_neighbors) < 7:
             remaining_neighbors = np.where(pairwise_probabilities[i] < 1)[0]
             sorted_remaining_neighbors = remaining_neighbors[np.argsort(pairwise_probabilities[i][remaining_neighbors])[::-1]]
@@ -178,19 +147,20 @@ def optimize_add_adj_matrix(adj_matrix, pairwise_probabilities, cosine_sim_matri
         else:
             prob_neighbors = full_prob_neighbors
             
-        sim_neighbors = np.argsort(cosine_sim_matrix[i])[::-1][:7]  # Top 7 by cosine similarity
+        sim_neighbors = np.argsort(cosine_sim_matrix[i])[::-1][:7]  # Take top 7 by cosine similarity
 
-        # Intersection of both neighbor sets
+        # Take intersection
         common_neighbors = set(prob_neighbors) & set(sim_neighbors)
         
-        # Sort by consensus probability, descending
+        # Sort by co-occurrence probability, prioritize higher probability
         sorted_neighbors = sorted(common_neighbors, key=lambda j: pairwise_probabilities[i, j], reverse=True)
 
         for j in sorted_neighbors:
             # Ensure i != j and edge does not already exist
             if i != j and adj_matrix[i, j] == 0:
-                # Check if both nodes have not exceeded max added edges
+                # Check if max edges per node exceeded
                 if added_edges_per_spot[i] < max_edges_per_spot and added_edges_per_spot[j] < max_edges_per_spot:
+                    # Add edge if conditions met
                     adj_matrix[i, j] = 1
                     adj_matrix[j, i] = 1  # Ensure symmetry
                     added_edges += 1
@@ -223,18 +193,19 @@ def pre_cluster(adata, method="mclust", n_clusters=7, res=1, dims=25, radius=20,
         embedding = pca.fit_transform(adata[:, hvg_genes].X)
         adata.obsm['X_pca'] = embedding
 
-    adata = utils.clustering(adata, 
-                            data = adata.obsm['X_pca'][:,:dims], 
-                            method=method, 
-                            n_clusters=n_clusters, 
-                            radius=radius, 
-                            res = res,
-                            refinement=refinement
-                            )
+    adata = utils.clustering(
+        adata, 
+        data=adata.obsm['X_pca'][:, :dims], 
+        method=method, 
+        n_clusters=n_clusters, 
+        radius=radius, 
+        res=res,
+        refinement=refinement
+    )
     
-    adata.obs['domain']=adata.obs['domain'].astype("int")
-    adata.obs['domain']=adata.obs['domain'].astype("category")
-    adata.obs['pre_domain']=adata.obs['domain']
+    adata.obs['domain'] = adata.obs['domain'].astype("int")
+    adata.obs['domain'] = adata.obs['domain'].astype("category")
+    adata.obs['pre_domain'] = adata.obs['domain']
 
     print(">>> Pre-clustering finished successfully!")
     print(f">>> Clustering labels stored in `adata.obs['pre_domain'] and ['{method}']`.")
@@ -264,7 +235,7 @@ def topics_selection(adata, n_topics=10):
     adata, topic_mri_list = utils.calculate_MRI_for_topics(adata)
     adata = utils.filter_and_update_nmf_topics(adata, topic_mri_list, threshold=0.2)
     
-    print(">>> Step3: Filtering based on Random Forest importances...")
+    print(">>> Stpe3: Filtering based on Random Forest importances...")
     sorted_indices, sorted_importance = utils.fit_rf_and_extract_importance(adata)
     final_topics_list = utils.filter_top_topics_by_importance(adata, threshold=0.1)
 
@@ -275,30 +246,22 @@ def topics_selection(adata, n_topics=10):
     print(">>> adata.uns['sorted_indices_imp'] generate!")
     print(">>> adata.uns['final_topics'] generate!")
 
-
-
 def genes_selection(adata, n_genes=3000, lower_p=15, upper_p=95):
     adata = utils.get_top_n_genes_for_topics(adata, n=100)
-    svgs_set, no_svgs_set, sorted_rank_matrix = utils.select_genes_from_hvgs(
-        adata, total_genes=n_genes, lower_p=lower_p, upper_p=upper_p
-    )
+    utils.select_genes_from_hvgs(adata, total_genes=n_genes, lower_p=lower_p, upper_p=upper_p)
     adata = utils.create_genes_add_column(adata, n_max=n_genes // 4)
     adata = utils.create_genes_del_column(adata, n_max=n_genes // 4)
     adata = utils.create_HSGs_column(adata)
-    selected_genes = adata.var.loc[(adata.var["HSG"] == True)].index
-    print(">>> HSGs selected!")
+    print('>>> HSGs selected!')
     print(">>> adata.uns['HSG'] generate!")
 
-    ##### Generate marker_genes_dict (by the way) #########
+    ##### generate marker_genes_dict (by the way)#########
     # 1. Compute gene-topic correlation matrix
     utils.compute_gene_topic_corr(adata, method="pearson")
     print(">>> adata.varm['gene_topic_corr'] generate! (method='pearson')")
     # 2. Generate marker genes dictionary
     utils.generate_marker_genes_dict(adata, corr_threshold=0.2)
     print(">>> adata.uns['marker_genes_all_dict'] generate! (corr_threshold=0.2)")
-
-    # return selected_genes, svgs_set, no_svgs_set, sorted_rank_matrix
-
 
 def get_feature(adata):
     """Extracts feature matrix from selected genes and generates augmented features."""
@@ -309,19 +272,10 @@ def get_feature(adata):
     # Extract feature matrix, keep sparse format if possible to save memory
     feat = adata[:, HSGs].X
 
-    # from sklearn.decomposition import PCA
-    # pca = PCA(n_components=256, random_state=42) 
-    # embedding = pca.fit_transform(feat)
-    # feat = embedding
-
     if scipy.sparse.issparse(feat):
-        feat = feat.toarray()  # Convert to dense matrix only if needed
+        feat = feat.toarray()  # Convert to dense only if needed
 
-    # Store features
     adata.obsm['feat'] = feat
-
-    # print(">>>Feature extraction completed! ")
-
 
 def normalize_adj(adj):
     """Symmetrically normalize adjacency matrix."""
@@ -339,7 +293,7 @@ def normalize_adj(adj):
 
 def preprocess_adj(adj):
     """Preprocessing of adjacency matrix for simple GCN model and conversion to tuple representation."""
-    adj_normalized = normalize_adj(adj)+np.eye(adj.shape[0])
+    adj_normalized = normalize_adj(adj) + np.eye(adj.shape[0])
     return adj_normalized 
 
 def sparse_mx_to_torch_sparse_tensor(sparse_mx):
@@ -372,8 +326,16 @@ def fix_seed(seed):
     os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8' 
     
 
-def consensus_clustering(adata, method='leiden', resolution_range=(1.0, 5.0, 0.1), n_neighbors=7, use_rep='X_pca', dims=25, radius=20, refinement=True):
-
+def consensus_clustering(
+    adata, 
+    method='leiden', 
+    resolution_range=(1.0, 5.0, 0.1), 
+    n_neighbors=7, 
+    use_rep='X_pca', 
+    dims=25, 
+    radius=20, 
+    refinement=True
+):
     all_clusters = []         # Store all clustering results
     cluster_labels = []       # Store labels for DataFrame
     param_list = []           # Store each tested parameter value
@@ -408,8 +370,11 @@ def consensus_clustering(adata, method='leiden', resolution_range=(1.0, 5.0, 0.1
     print(f">>> {method} clustering finished. Time elapsed: {time.time() - start_time:.2f} seconds")
 
     # Store clustering results in a DataFrame
-    clusters_df = pd.DataFrame(np.array(cluster_labels).T, index=adata.obs.index,
-                               columns=[f"{method}_{p:.2f}" for p in param_list])
+    clusters_df = pd.DataFrame(
+        np.array(cluster_labels).T, 
+        index=adata.obs.index,
+        columns=[f"{method}_{p:.2f}" for p in param_list]
+    )
     
     # Compute consensus matrix
     print(">>> Computing consensus matrix...")
@@ -456,73 +421,51 @@ def consensus_clustering(adata, method='leiden', resolution_range=(1.0, 5.0, 0.1
 
 
 def calculate_add_side_accuracy(adj_matrix_before, adj_matrix_after, ground_truth):
-    """
-    Calculate the accuracy of added edges, i.e., the proportion of newly added edges that connect nodes of the same class.
-
-    Args:
-        adj_matrix_before (scipy.sparse.csr_matrix): Original adjacency matrix (N, N).
-        adj_matrix_after (scipy.sparse.csr_matrix): Optimized adjacency matrix (N, N).
-        ground_truth (numpy.ndarray): Class labels for each node (N,).
-
-    Returns:
-        float: Accuracy of the added edges.
-    """
     # Convert adjacency matrices to COO format for easy access
     coo_before = adj_matrix_before.tocoo()
     coo_after = adj_matrix_after.tocoo()
 
-    # Extract newly added edges
+    # Extract added edges
     added_edges = []
     for i, j in zip(coo_after.row, coo_after.col):
-        if adj_matrix_before[i, j] == 0:  # Only consider newly added edges
+        if adj_matrix_before[i, j] == 0:  # Only consider new edges
             added_edges.append((i, j))
-
+    
     # Count how many added edges connect nodes of the same class
     correct_additions = 0
     for i, j in added_edges:
         if ground_truth[i] == ground_truth[j]:
             correct_additions += 1
-
+    
     # Calculate accuracy
     if len(added_edges) > 0:
         accuracy = correct_additions / len(added_edges)
     else:
         accuracy = 0.0  # If no new edges, accuracy is 0
-
+    
     return accuracy
 
 def calculate_cut_side_accuracy(adj_matrix_before, adj_matrix_after, ground_truth):
-    """
-    Calculate the accuracy of cut edges, i.e., the proportion of removed edges that connect nodes of different classes.
-
-    Args:
-        adj_matrix_before (np.ndarray or scipy.sparse.csr_matrix): Original adjacency matrix (N, N)
-        adj_matrix_after (np.ndarray or scipy.sparse.csr_matrix): Optimized adjacency matrix (N, N)
-        ground_truth (np.ndarray): Ground truth class labels for nodes (N,)
-
-    Returns:
-        float: Accuracy of cut-side operation
-    """
 
     # Get removed edges
     edges_before = set(tuple(sorted((i, j))) for i, j in zip(*adj_matrix_before.nonzero()) if i < j)
     edges_after = set(tuple(sorted((i, j))) for i, j in zip(*adj_matrix_after.nonzero()) if i < j)
-    removed_edges = edges_before - edges_after  # Find edges that were removed
+    removed_edges = edges_before - edges_after  # Find removed edges
 
     # Count how many removed edges connect nodes of different classes
     correct_removed = 0
     total_removed = len(removed_edges)
-
+    
     for i, j in removed_edges:
         if ground_truth[i] != ground_truth[j]:
-            correct_removed += 1  # If nodes are of different classes, consider as correct removal
+            correct_removed += 1  # If connects different classes, correct removal
 
     # Calculate accuracy
     if total_removed > 0:
         accuracy = correct_removed / total_removed
     else:
         accuracy = 0.0  # If no edges removed, accuracy is 0
-
+    
     return accuracy
 
 
