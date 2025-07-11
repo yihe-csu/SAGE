@@ -63,7 +63,7 @@ Here, the environment configuration is completed！
 
 
 ## Reference and Citation
-He, Y., Wang, S., Xu, Y., Wang, J. et al. SAGE: Spatially Aware Genes Selection and Multi-view Embedding Fusion for Domain Identification in Spatial Transcriptomics.
+He, Y., Xu, Y., Ding, L., Wang, S. et al. SAGE: Spatially Aware Genes Selection and Dual-view Embedding Fusion for Domain Identification in Spatial Transcriptomics.
 
 ## Improvements
 We welcome any comments about `SAGE`, and if you find bugs or have any ideas, feel free to leave a comment [FAQ](https://github.com/yihe-csu/SAGE/labels/FAQ).
