@@ -11,7 +11,7 @@ from sklearn.neighbors import NearestNeighbors
 from sklearn.cluster import KMeans
 from tqdm import tqdm
 from . import utils
-from .utils import mclust_R_f, refine_label
+from .utils import mclust_R, refine_label
 import time
 from sklearn.decomposition import PCA
 from sklearn.metrics.pairwise import cosine_similarity
@@ -359,7 +359,8 @@ def consensus_clustering(
             labels = kmeans.fit_predict(adata.obsm[use_rep])
         
         elif method == 'mclust': 
-            labels = mclust_R_f(data=adata.obsm[use_rep][:, :dims], n_clusters=int(param), random_seed=42)
+            mclust_R(adata, data=adata.obsm[use_rep][:, :dims], num_cluster=int(param), random_seed=42)
+            labels = adata.obs['mclust'].to_numpy(dtype=int, copy=True)
         else:
             raise ValueError("Method must be 'leiden', 'kmeans', or 'mclust'.")
 
